@@ -270,20 +270,6 @@ in the Software without restriction...
 
 ---
 
-## 📞 **Support & Contact**
-
-### **Get Help**
-- 📚 [Documentation](https://github.com/yourusername/hand-gesture-navigator/wiki)
-- 🐛 [Report Issues](https://github.com/yourusername/hand-gesture-navigator/issues)
-- 💬 [Discussions](https://github.com/yourusername/hand-gesture-navigator/discussions)
-
-### **Connect With Us**
-- 🐦 [Twitter](https://twitter.com/yourusername)
-- 💼 [LinkedIn](https://linkedin.com/in/yourusername)
-- 📧 [Email](mailto:your.email@example.com)
-
----
-
 <div align="center">
 
 **⭐ Star this project if you found it useful!**
