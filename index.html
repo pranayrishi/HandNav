@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Gesture Website Navigator</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        h1 {
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .subtitle {
+            margin-bottom: 30px;
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .camera-container {
+            position: relative;
+            display: inline-block;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+        
+        #input_video {
+            width: 640px;
+            height: 480px;
+            transform: scaleX(-1);
+        }
+        
+        #output_canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 640px;
+            height: 480px;
+            transform: scaleX(-1);
+        }
+        
+        .status {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .gesture-info {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .countdown {
+            font-size: 2em;
+            color: #ffeb3b;
+            margin: 10px 0;
+        }
+        
+        .gestures-guide {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .gesture-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .gesture-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .gesture-card h3 {
+            margin: 0 0 10px 0;
+            color: #ffeb3b;
+        }
+        
+        .start-btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        
+        .start-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .error {
+            background: rgba(244, 67, 54, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .detection-indicator {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 255, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤚 Hand Gesture Navigator</h1>
+        <p class="subtitle">Show hand gestures to automatically navigate to websites!</p>
+        
+        <div class="gestures-guide">
+            <div class="gesture-card">
+                <h3>👆 One Finger</h3>
+                <p>YouTube</p>
+            </div>
+            <div class="gesture-card">
+                <h3>✌️ Two Fingers</h3>
+                <p>Instagram</p>
+            </div>
+            <div class="gesture-card">
+                <h3>🤟 Three Fingers</h3>
+                <p>Twitter/X</p>
+            </div>
+            <div class="gesture-card">
+                <h3>🖖 Four Fingers</h3>
+                <p>Google</p>
+            </div>
+            <div class="gesture-card">
+                <h3>🖐️ Open Palm</h3>
+                <p>GitHub</p>
+            </div>
+        </div>
+        
+        <button id="startBtn" class="start-btn">Start Camera</button>
+        
+        <div id="errorMsg" class="error" style="display: none;"></div>
+        
+        <div class="camera-container" id="cameraContainer" style="display: none;">
+            <video id="input_video" autoplay muted playsinline></video>
+            <canvas id="output_canvas"></canvas>
+            <div id="detectionIndicator" class="detection-indicator" style="display: none;"></div>
+        </div>
+        
+        <div class="status" id="statusDiv" style="display: none;">
+            <div class="gesture-info" id="gestureInfo">Ready to detect gestures...</div>
+            <div class="countdown" id="countdown"></div>
+            <p>Hold gesture steady for 2 seconds to navigate!</p>
+        </div>
+    </div>
+
+    <script>
+        class HandGestureNavigator {
+            constructor() {
+                this.video = document.getElementById('input_video');
+                this.canvas = document.getElementById('output_canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.hands = null;
+                this.camera = null;
+                this.currentGesture = null;
+                this.gestureStartTime = null;
+                this.countdownInterval = null;
+                this.isProcessing = false;
+                
+                this.websites = {
+                    'one': 'https://youtube.com',
+                    'two': 'https://instagram.com',
+                    'three': 'https://twitter.com',
+                    'four': 'https://google.com',
+                    'five': 'https://github.com'
+                };
+                
+                this.gestureNames = {
+                    'one': 'One Finger → YouTube',
+                    'two': 'Two Fingers → Instagram',
+                    'three': 'Three Fingers → Twitter/X',
+                    'four': 'Four Fingers → Google',
+                    'five': 'Open Palm → GitHub'
+                };
+                
+                this.setupEventListeners();
+            }
+            
+            setupEventListeners() {
+                document.getElementById('startBtn').addEventListener('click', () => {
+                    this.startCamera();
+                });
+            }
+            
+            async startCamera() {
+                try {
+                    const startBtn = document.getElementById('startBtn');
+                    startBtn.disabled = true;
+                    startBtn.textContent = 'Initializing...';
+                    
+                    // Initialize MediaPipe Hands
+                    this.hands = new Hands({
+                        locateFile: (file) => {
+                            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                        }
+                    });
+                    
+                    this.hands.setOptions({
+                        maxNumHands: 1,
+                        modelComplexity: 1,
+                        minDetectionConfidence: 0.5,
+                        minTrackingConfidence: 0.5
+                    });
+                    
+                    this.hands.onResults((results) => this.onResults(results));
+                    
+                    // Setup camera
+                    this.camera = new Camera(this.video, {
+                        onFrame: async () => {
+                            await this.hands.send({ image: this.video });
+                        },
+                        width: 640,
+                        height: 480
+                    });
+                    
+                    await this.camera.start();
+                    
+                    // Show camera and status
+                    document.getElementById('cameraContainer').style.display = 'block';
+                    document.getElementById('statusDiv').style.display = 'block';
+                    startBtn.style.display = 'none';
+                    
+                    this.canvas.width = 640;
+                    this.canvas.height = 480;
+                    
+                } catch (error) {
+                    console.error('Error starting camera:', error);
+                    this.showError('Could not access camera or initialize hand detection. Please allow camera permissions and try again.');
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('startBtn').textContent = 'Start Camera';
+                }
+            }
+            
+            onResults(results) {
+                // Clear and draw the video frame
+                this.ctx.save();
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.drawImage(results.image, 0, 0, this.canvas.width, this.canvas.height);
+                
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    const landmarks = results.multiHandLandmarks[0];
+                    
+                    // Draw hand landmarks
+                    this.drawLandmarks(landmarks);
+                    
+                    // Detect gesture
+                    const gesture = this.detectGesture(landmarks);
+                    
+                    if (gesture) {
+                        this.processGesture(gesture);
+                        document.getElementById('detectionIndicator').style.display = 'block';
+                        document.getElementById('detectionIndicator').textContent = `Detected: ${gesture.toUpperCase()}`;
+                    } else {
+                        this.resetGesture();
+                        document.getElementById('detectionIndicator').style.display = 'none';
+                    }
+                } else {
+                    // No hand detected
+                    this.resetGesture();
+                    document.getElementById('detectionIndicator').style.display = 'none';
+                }
+                
+                this.ctx.restore();
+            }
+            
+            drawLandmarks(landmarks) {
+                // Draw hand skeleton
+                this.ctx.strokeStyle = '#00FF00';
+                this.ctx.lineWidth = 2;
+                this.ctx.fillStyle = '#FF0000';
+                
+                // Draw connections between landmarks
+                const connections = [
+                    [0, 1], [1, 2], [2, 3], [3, 4], // Thumb
+                    [0, 5], [5, 6], [6, 7], [7, 8], // Index
+                    [0, 9], [9, 10], [10, 11], [11, 12], // Middle
+                    [0, 13], [13, 14], [14, 15], [15, 16], // Ring
+                    [0, 17], [17, 18], [18, 19], [19, 20], // Pinky
+                    [5, 9], [9, 13], [13, 17] // Palm
+                ];
+                
+                connections.forEach(([start, end]) => {
+                    const startPoint = landmarks[start];
+                    const endPoint = landmarks[end];
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(startPoint.x * this.canvas.width, startPoint.y * this.canvas.height);
+                    this.ctx.lineTo(endPoint.x * this.canvas.width, endPoint.y * this.canvas.height);
+                    this.ctx.stroke();
+                });
+                
+                // Draw landmark points
+                landmarks.forEach((landmark) => {
+                    const x = landmark.x * this.canvas.width;
+                    const y = landmark.y * this.canvas.height;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, 3, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                });
+            }
+            
+            detectGesture(landmarks) {
+                // Get finger tip and PIP joint landmarks
+                const fingerTips = [4, 8, 12, 16, 20]; // Thumb, Index, Middle, Ring, Pinky tips
+                const fingerPIPs = [3, 6, 10, 14, 18]; // PIP joints
+                
+                let extendedFingers = 0;
+                
+                // Check each finger
+                for (let i = 0; i < 5; i++) {
+                    const tipY = landmarks[fingerTips[i]].y;
+                    const pipY = landmarks[fingerPIPs[i]].y;
+                    
+                    // For thumb, check x-axis (different orientation)
+                    if (i === 0) {
+                        const tipX = landmarks[fingerTips[i]].x;
+                        const pipX = landmarks[fingerPIPs[i]].x;
+                        if (Math.abs(tipX - pipX) > 0.05) {
+                            extendedFingers++;
+                        }
+                    } else {
+                        // For other fingers, check if tip is above PIP (extended)
+                        if (tipY < pipY - 0.02) {
+                            extendedFingers++;
+                        }
+                    }
+                }
+                
+                // Map finger count to gesture
+                switch (extendedFingers) {
+                    case 1: return 'one';
+                    case 2: return 'two';
+                    case 3: return 'three';
+                    case 4: return 'four';
+                    case 5: return 'five';
+                    default: return null;
+                }
+            }
+            
+            processGesture(detectedGesture) {
+                if (this.isProcessing) return;
+                
+                if (detectedGesture === this.currentGesture) {
+                    // Continue timing the same gesture
+                    const elapsed = Date.now() - this.gestureStartTime;
+                    const remaining = Math.ceil((2000 - elapsed) / 1000);
+                    
+                    if (remaining > 0) {
+                        document.getElementById('countdown').textContent = remaining;
+                    } else {
+                        // Navigate to website
+                        this.navigateToWebsite(detectedGesture);
+                    }
+                } else {
+                    // New gesture detected
+                    this.currentGesture = detectedGesture;
+                    this.gestureStartTime = Date.now();
+                    
+                    document.getElementById('gestureInfo').textContent = 
+                        `Detected: ${this.gestureNames[detectedGesture]}`;
+                    document.getElementById('countdown').textContent = '2';
+                    
+                    // Clear any existing countdown
+                    if (this.countdownInterval) {
+                        clearInterval(this.countdownInterval);
+                    }
+                    
+                    // Start countdown
+                    this.countdownInterval = setInterval(() => {
+                        if (this.currentGesture === detectedGesture && !this.isProcessing) {
+                            const elapsed = Date.now() - this.gestureStartTime;
+                            const remaining = Math.ceil((2000 - elapsed) / 1000);
+                            
+                            if (remaining > 0) {
+                                document.getElementById('countdown').textContent = remaining;
+                            } else {
+                                clearInterval(this.countdownInterval);
+                                this.navigateToWebsite(detectedGesture);
+                            }
+                        }
+                    }, 100);
+                }
+            }
+            
+            navigateToWebsite(gesture) {
+                if (this.isProcessing) return;
+                this.isProcessing = true;
+                
+                const url = this.websites[gesture];
+                const name = this.gestureNames[gesture];
+                
+                // Show confirmation
+                document.getElementById('gestureInfo').textContent = `Navigating to ${name}...`;
+                document.getElementById('countdown').textContent = '🚀';
+                
+                // Navigate immediately
+                window.open(url, '_blank');
+                
+                // Reset after navigation
+                setTimeout(() => {
+                    this.resetGesture();
+                    this.isProcessing = false;
+                }, 3000);
+            }
+            
+            resetGesture() {
+                this.currentGesture = null;
+                this.gestureStartTime = null;
+                
+                if (!this.isProcessing) {
+                    document.getElementById('gestureInfo').textContent = 'Ready to detect gestures...';
+                    document.getElementById('countdown').textContent = '';
+                }
+                
+                if (this.countdownInterval) {
+                    clearInterval(this.countdownInterval);
+                    this.countdownInterval = null;
+                }
+            }
+            
+            showError(message) {
+                const errorDiv = document.getElementById('errorMsg');
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+            }
+        }
+        
+        // Initialize the application
+        const app = new HandGestureNavigator();
+    </script>
+</body>
+</html>
